@@ -1,0 +1,28 @@
+# Dataset
+
+# Training outputs
+outputs/*
+!outputs/.gitkeep
+
+# Checkpoints
+*.pth
+*.pt
+*.ckpt
+
+# Python
+__pycache__/
+*.pyc
+
+# Environment
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+
+# Jupyter
+.ipynb_checkpoints/
