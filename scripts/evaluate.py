@@ -184,7 +184,7 @@ def main():
 
     model.eval()
 
-    categories = data_cfg["category"]
+    categories = data_cfg["categories"]
     test_dataset = (
         IrisSegmentationDataset(
             root=data_cfg[
@@ -195,7 +195,6 @@ def main():
                 train_cfg["image_size"]
             ),
             categories=categories, 
-            train=False,
             augmentation_config=None,
         )
     )

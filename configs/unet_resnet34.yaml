@@ -2,7 +2,7 @@ seed: 42
 
 data:
   root: /media/share/Member/ueki/datasets/iris_segmentation
-  category: 
+  categories: 
     - Geometry
     - Tissue
     - Healthy
@@ -42,21 +42,135 @@ training:
     patience: 5
 
 
-augmentation:
-  horizontal_flip:
-    enabled: true
-    probability: 0.5
 
-  rotation:
-    enabled: true
-    probability: 0.5
-    limit: 10
+augmentation:
+  enabled: false
+
+  Geometry:
+    horizontal_flip:
+      enabled: true
+      probability: 0.5
+
+    rotation:
+      enabled: true
+      probability: 0.5
+      limit: 7
+
+    brightness:
+      enabled: true
+      probability: 0.3
+      limit: 0.08
+
+    contrast:
+      enabled: true
+      probability: 0.3
+      limit: 0.10
+
+    gamma:
+      enabled: true
+      probability: 0.2
+      limit: 0.10
+
+    gaussian_noise:
+      enabled: true
+      probability: 0.15
+      sigma: 0.01
+
+    gaussian_blur:
+      enabled: true
+      probability: 0.10
+
+
+  Tissue:
+    horizontal_flip:
+      enabled: true
+      probability: 0.5
+
+    rotation:
+      enabled: true
+      probability: 0.7
+      limit: 10
+
+    brightness:
+      enabled: true
+      probability: 0.5
+      limit: 0.12
+
+    contrast:
+      enabled: true
+      probability: 0.5
+      limit: 0.15
+
+    gamma:
+      enabled: true
+      probability: 0.4
+      limit: 0.15
+
+    gaussian_noise:
+      enabled: true
+      probability: 0.3
+      sigma: 0.02
+
+    gaussian_blur:
+      enabled: true
+      probability: 0.2
+
+
+  Healthy:
+    horizontal_flip:
+      enabled: true
+      probability: 0.5
+
+    rotation:
+      enabled: true
+      probability: 0.5
+      limit: 7
+
+    brightness:
+      enabled: true
+      probability: 0.3
+      limit: 0.08
+
+    contrast:
+      enabled: true
+      probability: 0.3
+      limit: 0.10
+
+    gamma:
+      enabled: true
+      probability: 0.2
+      limit: 0.10
+
+    gaussian_noise:
+      enabled: true
+      probability: 0.15
+      sigma: 0.01
+
+    gaussian_blur:
+      enabled: true
+      probability: 0.10
+
+sampling:
+  enabled: false
+
+  category_multiplier:
+    Geometry: 1.0
+    Tissue: 7.0
+    Healthy: 1.0
+
+report:
+  split: test
+
+  rows_per_page: 4
+
+  output_pdf:
+    outputs/unet_resnet34/predictions/test_results.pdf
 
 
 output:
   dir: outputs/unet_resnet34
   checkpoint: best_model.pt
-  history: history.csv
+  history_csv: history.csv
   loss_curve: loss_curve.png
   metric_curve: metric_curve.png
   evaluation_dir: outputs/unet_resnet34/evaluation

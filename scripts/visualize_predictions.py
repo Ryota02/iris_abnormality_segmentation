@@ -314,6 +314,98 @@ def create_overlay(
 
     return result
 
+import cv2
+import numpy as np
+
+
+def create_segmentation_comparison_map(
+    image,
+    gt_mask,
+    pred_mask,
+    alpha=0.4,
+):
+    """
+    Args:
+        image:
+            grayscale original image
+            shape = [H, W]
+
+        gt_mask:
+            ground truth mask
+            shape = [H, W]
+            values = 0 or 255 (or 0/1)
+
+        pred_mask:
+            predicted mask
+            shape = [H, W]
+            values = 0 or 255 (or 0/1)
+
+        alpha:
+            overlay transparency
+
+    Returns:
+        color_mask:
+            black background + 3 colored areas
+
+        overlay:
+            original image + 3 colored areas
+    """
+
+    # -----------------------------------
+    # binary化
+    # -----------------------------------
+    gt = (gt_mask > 0).astype(np.uint8)
+    pred = (pred_mask > 0).astype(np.uint8)
+
+    # -----------------------------------
+    # 3領域
+    # -----------------------------------
+    well_area = (gt == 1) & (pred == 1)     # TP
+    extra_area = (gt == 0) & (pred == 1)    # FP
+    missed_area = (gt == 1) & (pred == 0)   # FN
+
+    # -----------------------------------
+    # color mask作成
+    # OpenCVはBGR
+    # -----------------------------------
+    color_mask = np.zeros(
+        (gt.shape[0], gt.shape[1], 3),
+        dtype=np.uint8,
+    )
+
+    # Green = well segmented
+    color_mask[well_area] = (0, 255, 0)
+
+    # Blue = extra segmented
+    color_mask[extra_area] = (255, 0, 0)
+
+    # Red = missed segmented
+    color_mask[missed_area] = (0, 0, 255)
+
+    # -----------------------------------
+    # original imageをBGR化
+    # -----------------------------------
+    if len(image.shape) == 2:
+        image_bgr = cv2.cvtColor(
+            image,
+            cv2.COLOR_GRAY2BGR,
+        )
+    else:
+        image_bgr = image.copy()
+
+    # -----------------------------------
+    # overlay
+    # -----------------------------------
+    overlay = cv2.addWeighted(
+        image_bgr,
+        1.0 - alpha,
+        color_mask,
+        alpha,
+        0,
+    )
+
+    return color_mask, overlay
+
 
 def visualize_one(
     model,
@@ -410,10 +502,11 @@ def visualize_one(
     # Overlay
     # =============================
 
-    overlay = create_overlay(
-        image,
-        gt,
-        prediction,
+    overlay = create_segmentation_comparison_map(
+        image=image,
+        gt_mask=gt,
+        pred_mask=prediction,
+        alpha=0.4,
     )
 
     # =============================
@@ -622,7 +715,7 @@ def main():
     # =============================
     # Each category
     # =============================
-    categories = data_cfg["category"]
+    categories = data_cfg["categories"]
     for category in categories:
 
         image_dir = (

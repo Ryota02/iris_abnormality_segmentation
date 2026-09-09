@@ -96,49 +96,56 @@ class SegmentationTransform:
         return image, mask
 
 
-class IrisSegmentationDataset(Dataset):
-    """
-    Expected structure:
+from pathlib import Path
 
-    root/
-      Geometry/
-        train/images/
-        train/masks/
-        val/images/
-        val/masks/
-        test/images/
-        test/masks/
-      Tissue/
-        ...
-      Healthy/
-        ...
-    """
+import cv2
+
+from torch.utils.data import Dataset
+
+from src.augmentation import SegmentationAugmentation
+
+
+IMAGE_EXTENSIONS = {
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".bmp",
+    ".tif",
+    ".tiff",
+}
+
+
+class IrisSegmentationDataset(
+    Dataset
+):
 
     def __init__(
         self,
         root,
         split,
-        image_size=512,
-        categories=None,
-        train=False,
+        image_size,
+        categories,
         augmentation_config=None,
     ):
-        self.root = Path(root)
+
+        self.root = Path(
+            root
+        )
+
         self.split = split
-        self.image_size = image_size
-        self.train = train
 
-        if categories is None:
-            categories = [
-                "Geometry",
-                "Tissue",
-                "Healthy",
-            ]
+        self.categories = (
+            categories
+        )
 
-        self.categories = categories
         self.samples = []
 
+        # ----------------------------------------------------
+        # Collect samples
+        # ----------------------------------------------------
+
         for category in categories:
+
             image_dir = (
                 self.root
                 / category
@@ -154,93 +161,186 @@ class IrisSegmentationDataset(Dataset):
             )
 
             if not image_dir.exists():
+
                 raise FileNotFoundError(
-                    f"Image directory not found: {image_dir}"
+                    f"Image directory "
+                    f"not found: "
+                    f"{image_dir}"
                 )
 
             if not mask_dir.exists():
+
                 raise FileNotFoundError(
-                    f"Mask directory not found: {mask_dir}"
+                    f"Mask directory "
+                    f"not found: "
+                    f"{mask_dir}"
                 )
 
-            for image_path in sorted(image_dir.iterdir()):
+            for image_path in sorted(
+                image_dir.iterdir()
+            ):
+
                 if (
                     not image_path.is_file()
-                    or image_path.suffix.lower()
+                ):
+                    continue
+
+                if (
+                    image_path.suffix.lower()
                     not in IMAGE_EXTENSIONS
                 ):
                     continue
 
                 mask_path = (
                     mask_dir
-                    / f"{image_path.stem}.png"
+                    / (
+                        image_path.stem
+                        + ".png"
+                    )
                 )
 
                 if not mask_path.exists():
+
                     raise FileNotFoundError(
-                        f"Mask not found for {image_path.name}: "
+                        f"Mask not found: "
                         f"{mask_path}"
                     )
 
                 self.samples.append({
-                    "image": image_path,
-                    "mask": mask_path,
-                    "category": category,
+                    "image_path":
+                        image_path,
+
+                    "mask_path":
+                        mask_path,
+
+                    "category":
+                        category,
                 })
 
-        if len(self.samples) == 0:
-            raise RuntimeError(
-                f"No samples found for split: {split}"
-            )
+        # ----------------------------------------------------
+        # Transform
+        # ----------------------------------------------------
 
-        self.transform = SegmentationTransform(
-            image_size=image_size,
-            train=train,
-            augmentation_config=augmentation_config,
+        self.transform = (
+            SegmentationAugmentation(
+                image_size=image_size,
+
+                augmentation_config=
+                    augmentation_config,
+
+                train=(
+                    split == "train"
+                ),
+            )
         )
 
-        print(f"\n{split}: {len(self.samples)} images")
+        # ----------------------------------------------------
+        # Print
+        # ----------------------------------------------------
+
+        print(
+            f"\n{split}: "
+            f"{len(self.samples)} images"
+        )
 
         for category in categories:
+
             count = sum(
-                sample["category"] == category
-                for sample in self.samples
+                sample["category"]
+                == category
+
+                for sample
+                in self.samples
             )
-            print(f"  {category}: {count}")
 
-    def __len__(self):
-        return len(self.samples)
+            print(
+                f"  {category}: "
+                f"{count}"
+            )
 
-    def __getitem__(self, idx):
-        sample = self.samples[idx]
+    def __len__(
+        self,
+    ):
 
-        image_path = sample["image"]
-        mask_path = sample["mask"]
-        category = sample["category"]
-
-        image = cv2.imread(
-            str(image_path),
-            cv2.IMREAD_GRAYSCALE,
+        return len(
+            self.samples
         )
 
-        mask = cv2.imread(
-            str(mask_path),
+    def __getitem__(
+        self,
+        index,
+    ):
+
+        sample = (
+            self.samples[
+                index
+            ]
+        )
+
+        image_path = (
+            sample[
+                "image_path"
+            ]
+        )
+
+        mask_path = (
+            sample[
+                "mask_path"
+            ]
+        )
+
+        category = (
+            sample[
+                "category"
+            ]
+        )
+
+        # ----------------------------------------------------
+        # Read image
+        # ----------------------------------------------------
+
+        image = cv2.imread(
+            str(
+                image_path
+            ),
             cv2.IMREAD_GRAYSCALE,
         )
 
         if image is None:
+
             raise RuntimeError(
-                f"Cannot read image: {image_path}"
+                f"Cannot read image: "
+                f"{image_path}"
             )
+
+        # ----------------------------------------------------
+        # Read mask
+        # ----------------------------------------------------
+
+        mask = cv2.imread(
+            str(
+                mask_path
+            ),
+            cv2.IMREAD_GRAYSCALE,
+        )
 
         if mask is None:
+
             raise RuntimeError(
-                f"Cannot read mask: {mask_path}"
+                f"Cannot read mask: "
+                f"{mask_path}"
             )
 
-        image, mask = self.transform(
-            image,
-            mask,
+        # ----------------------------------------------------
+        # Transform
+        # ----------------------------------------------------
+
+        image, mask = (
+            self.transform(
+                image,
+                mask,
+                category,
+            )
         )
 
         return {

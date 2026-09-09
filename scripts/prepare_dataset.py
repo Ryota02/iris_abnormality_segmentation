@@ -70,9 +70,9 @@ def create_mask_lookup(mask_dir):
 def collect_dataset(
     geometry_images,
     geometry_masks,
-    tissue_images,
-    tissue_masks,
-    healthy_images,
+    # tissue_images,
+    # tissue_masks,
+    # healthy_images,
 ):
     """
     Collect all images.
@@ -121,53 +121,53 @@ def collect_dataset(
                 geometry_mask_lookup[stem],
         })
 
-    # =====================================
-    # Tissue
-    # =====================================
+    # # =====================================
+    # # Tissue
+    # # =====================================
 
-    tissue_mask_lookup = create_mask_lookup(
-        tissue_masks
-    )
+    # tissue_mask_lookup = create_mask_lookup(
+    #     tissue_masks
+    # )
 
-    for image_path in get_images(
-        tissue_images
-    ):
-        stem = image_path.stem
+    # for image_path in get_images(
+    #     tissue_images
+    # ):
+    #     stem = image_path.stem
 
-        if stem not in tissue_mask_lookup:
-            print(
-                f"[WARNING] Tissue mask missing: "
-                f"{image_path.name}"
-            )
-            continue
+    #     if stem not in tissue_mask_lookup:
+    #         print(
+    #             f"[WARNING] Tissue mask missing: "
+    #             f"{image_path.name}"
+    #         )
+    #         continue
 
-        subject_id = get_subject_id(
-            image_path.name
-        )
+    #     subject_id = get_subject_id(
+    #         image_path.name
+    #     )
 
-        subjects[subject_id].append({
-            "category": "Tissue",
-            "image_path": image_path,
-            "mask_path":
-                tissue_mask_lookup[stem],
-        })
+    #     subjects[subject_id].append({
+    #         "category": "Tissue",
+    #         "image_path": image_path,
+    #         "mask_path":
+    #             tissue_mask_lookup[stem],
+    #     })
 
-    # =====================================
-    # Healthy
-    # =====================================
+    # # =====================================
+    # # Healthy
+    # # =====================================
 
-    for image_path in get_images(
-        healthy_images
-    ):
-        subject_id = get_subject_id(
-            image_path.name
-        )
+    # for image_path in get_images(
+    #     healthy_images
+    # ):
+    #     subject_id = get_subject_id(
+    #         image_path.name
+    #     )
 
-        subjects[subject_id].append({
-            "category": "Healthy",
-            "image_path": image_path,
-            "mask_path": None,
-        })
+    #     subjects[subject_id].append({
+    #         "category": "Healthy",
+    #         "image_path": image_path,
+    #         "mask_path": None,
+    #     })
 
     return subjects
 
@@ -323,8 +323,8 @@ def create_output_directories(
 ):
     categories = [
         "Geometry",
-        "Tissue",
-        "Healthy",
+        # "Tissue",
+        # "Healthy",
     ]
 
     splits = [
@@ -574,8 +574,8 @@ def print_summary(
 
     for category in [
         "Geometry",
-        "Tissue",
-        "Healthy",
+        # "Tissue",
+        # "Healthy",
     ]:
 
         print(
@@ -664,20 +664,20 @@ def main():
                 "geometry_masks"
             ],
 
-        tissue_images=
-            raw_cfg[
-                "tissue_images"
-            ],
+        # tissue_images=
+        #     raw_cfg[
+        #         "tissue_images"
+        #     ],
 
-        tissue_masks=
-            raw_cfg[
-                "tissue_masks"
-            ],
+        # tissue_masks=
+        #     raw_cfg[
+        #         "tissue_masks"
+        #     ],
 
-        healthy_images=
-            raw_cfg[
-                "healthy_images"
-            ],
+        # healthy_images=
+        #     raw_cfg[
+        #         "healthy_images"
+        #     ],
     )
 
     print(

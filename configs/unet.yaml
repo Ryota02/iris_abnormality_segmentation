@@ -8,15 +8,15 @@ data:
     - Healthy
 
   raw:
-    geometry_images: /media/share/Member/ueki/datasets/iris_segmentation/Geometry/images
-    geometry_masks: /media/share/Member/ueki/datasets/iris_segmentation/Geometry/mask
+    geometry_images: /media/share/Member/ueki/datasets/iris/Geometry
+    geometry_masks: /media/share/Member/ueki/SegmentationClass/Geometry
 
-    tissue_images: /media/share/Member/ueki/datasets/iris_segmentation/Tissue/images
-    tissue_masks: /media/share/Member/ueki/datasets/iris_segmentation/Tissue/mask
+    # tissue_images: /media/share/Member/ueki/datasets/iris_segmentation/Tissue/images
+    # tissue_masks: /media/share/Member/ueki/datasets/iris_segmentation/Tissue/mask
 
-    healthy_images: /media/share/Member/ueki/datasets/iris_segmentation/Healthy
+    # healthy_images: /media/share/Member/ueki/datasets/iris_segmentation/Healthy
 
-  output_dir: /media/share/Member/ueki/datasets/iris_segmentation
+  output_dir: /media/share/Member/ueki/datasets/iris_geometry
 
   split:
     train_ratio: 0.70
