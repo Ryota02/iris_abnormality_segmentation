@@ -1,0 +1,189 @@
+seed: 42
+
+
+data:
+  root: /media/share/Member/ueki/datasets/iris_segmentation
+  categories: 
+    # - Geometry
+    - Tissue
+    - Healthy
+
+
+model:
+  name: unet_resnet
+  backbone: resnet34
+  pretrained: true
+  in_channels: 1
+  out_channels: 1
+
+
+training:
+  image_size: 512
+  epochs: 100
+  batch_size: 8
+
+  learning_rate: 0.0001
+  weight_decay: 0.0001
+
+  num_workers: 0
+  threshold: 0.5
+
+  loss:
+    bce_weight: 0.5
+    dice_weight: 0.5
+
+  scheduler:
+    enabled: false
+
+
+# ============================================================
+# Augmentation
+# ============================================================
+
+augmentation:
+  enabled: false
+
+
+# ============================================================
+# Oversampling
+# ============================================================
+
+sampling:
+  enabled: false
+
+
+# ============================================================
+# Synthetic Tissue
+# ============================================================
+
+synthetic:
+  enabled: false
+
+  image_dir:
+    /media/share/Member/ueki/datasets/iris_segmentation/Tissue/synthetic_train/images
+
+  mask_dir:
+    /media/share/Member/ueki/datasets/iris_segmentation/Tissue/synthetic_train/masks
+
+  use_num: 0
+
+  # 0,10,20,26,31で同じSynthetic画像順序を使用する
+  shuffle_seed: 42
+
+  include_real_tissue: true
+
+# ============================================================
+# Synthetic ablation
+# ============================================================
+
+synthetic_ablation:
+
+  synthetic_ablation:
+
+  experiments:
+
+    - name: baseline
+      synthetic_count: 0
+      include_real_tissue: true
+
+    - name: synthetic_10
+      synthetic_count: 10
+      include_real_tissue: true
+
+    - name: synthetic_20
+      synthetic_count: 20
+      include_real_tissue: true
+
+    - name: synthetic_27
+      synthetic_count: 27
+      include_real_tissue: true
+
+    - name: synthetic_32
+      synthetic_count: 32
+      include_real_tissue: true
+
+    - name: synthetic_only_32
+      synthetic_count: 32
+      include_real_tissue: false
+
+
+  output_root:
+    outputs/synthetic_ablation
+
+  summary_csv:
+    outputs/synthetic_ablation/synthetic_ablation_summary.csv
+
+synthetic_report:
+
+  output_pdf:
+    outputs/synthetic_ablation/synthetic_ablation_report.pdf
+
+  model_name:
+    ResNet34 U-Net
+
+
+  # ==========================================================
+  # Qualitative prediction comparison
+  # ==========================================================
+
+  qualitative:
+
+    enabled: false
+
+    prediction_root:
+      outputs/synthetic_ablation
+
+    experiments:
+      - baseline
+      - synthetic_10
+      - synthetic_20
+      - synthetic_27
+      - synthetic_32
+      - synthetic_only_32
+
+    samples:
+
+      - category: Tissue
+        sample: sample_001
+
+      - category: Tissue
+        sample: sample_002
+
+# ============================================================
+# Prediction PDF Report
+# ============================================================
+
+prediction_report:
+
+  split: test
+
+  # 1ページに表示する症例数
+  rows_per_page: 3
+
+  # Prediction threshold
+  threshold: 0.5
+
+  # 空ならsynthetic_ablation.experimentsを全部使う
+  experiments:
+    - baseline
+    - synthetic_10
+    - synthetic_20
+    - synthetic_27
+    - synthetic_32
+    - synthetic_only_32
+
+  output_name:
+    prediction_report_test.pdf
+
+output:
+  dir: outputs/synthetic_ablation/temp
+
+  checkpoint: best_model.pt
+
+  prediction_dir: predictions
+
+  history_csv: history.csv
+
+  loss_curve: loss_curve.png
+
+  metric_curve: metric_curve.png

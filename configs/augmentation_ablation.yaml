@@ -1,0 +1,200 @@
+seed: 42
+
+
+data:
+  root: /media/share/Member/ueki/datasets/iris_segmentation
+
+  categories:
+    # - Geometry
+    - Tissue
+    - Healthy
+
+
+model:
+  name: unet_resnet
+  backbone: resnet34
+  pretrained: true
+  in_channels: 1
+  out_channels: 1
+
+
+training:
+  image_size: 512
+  epochs: 100
+  batch_size: 8
+
+  learning_rate: 0.0001
+  weight_decay: 0.0001
+
+  num_workers: 0
+  threshold: 0.5
+
+  loss:
+    bce_weight: 0.5
+    dice_weight: 0.5
+
+  scheduler:
+    enabled: false
+    factor: 0.5
+    patience: 5
+
+
+# ============================================================
+# Augmentation parameters
+# ============================================================
+
+augmentation:
+  # Default.
+  # run_augmentation_ablation.py overrides this.
+  enabled: false
+
+  Tissue:
+    horizontal_flip:
+      enabled: true
+      probability: 0.5
+
+    rotation:
+      enabled: true
+      probability: 0.5
+      limit: 10
+
+    brightness:
+      enabled: true
+      probability: 0.5
+      limit: 0.10
+
+    contrast:
+      enabled: true
+      probability: 0.5
+      limit: 0.10
+
+    gamma:
+      enabled: true
+      probability: 0.5
+      limit: 0.10
+
+    gaussian_noise:
+      enabled: true
+      probability: 0.5
+      sigma: 0.01
+
+    gaussian_blur:
+      enabled: true
+      probability: 0.5
+
+
+  Healthy:
+    horizontal_flip:
+      enabled: true
+      probability: 0.5
+
+    rotation:
+      enabled: true
+      probability: 0.5
+      limit: 10
+
+    brightness:
+      enabled: true
+      probability: 0.5
+      limit: 0.10
+
+    contrast:
+      enabled: true
+      probability: 0.5
+      limit: 0.10
+
+    gamma:
+      enabled: true
+      probability: 0.5
+      limit: 0.10
+
+    gaussian_noise:
+      enabled: true
+      probability: 0.5
+      sigma: 0.01
+
+    gaussian_blur:
+      enabled: true
+      probability: 0.5
+
+
+# ============================================================
+# Oversampling
+# ============================================================
+
+sampling:
+  # Default.
+  # run_augmentation_ablation.py overrides this.
+  enabled: false
+
+  category_multiplier:
+    Geometry: 1.0
+    Healthy: 1.0
+    Tissue: 6.0
+
+
+# ============================================================
+# Ablation
+# ============================================================
+
+# ============================================================
+# Ablation
+# ============================================================
+
+ablation:
+  methods:
+
+    # Baseline
+    - baseline
+
+    # Augmentation only
+    - horizontal_flip
+    - rotation
+    - brightness
+    - contrast
+    - gamma
+    - gaussian_noise
+    - gaussian_blur
+
+    # Oversampling only
+    - oversampling
+
+    # Augmentation + Oversampling
+    - horizontal_flip_oversampling
+    - rotation_oversampling
+    - brightness_oversampling
+    - contrast_oversampling
+    - gamma_oversampling
+    - gaussian_noise_oversampling
+    - gaussian_blur_oversampling
+
+  summary_csv:
+    outputs/augmentation_ablation/augmentation_ablation_summary.csv
+
+# ============================================================
+# Augmentation Ablation Report
+# ============================================================
+
+augmentation_report:
+
+  summary_csv:
+    outputs/augmentation_ablation/augmentation_ablation_summary.csv
+
+  output_pdf:
+    outputs/augmentation_ablation/augmentation_ablation_report.pdf
+
+  model_name:
+    ResNet34 U-Net
+
+
+# ============================================================
+# Output
+# ============================================================
+
+output:
+  dir: outputs/augmentation_ablation/temp
+
+  checkpoint: best_model.pt
+  history_csv: history.csv
+  loss_curve: loss_curve.png
+  metric_curve: metric_curve.png

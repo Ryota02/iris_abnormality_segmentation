@@ -5,11 +5,11 @@ from torch.utils.data import (
 )
 
 from src.dataset import (
-    IrisSegmentationDataset
+    IrisSegmentationDataset,
 )
 
 from src.sampler import (
-    CategoryMultiplierSampler
+    CategoryMultiplierSampler,
 )
 
 
@@ -17,12 +17,6 @@ def build_train_sampler(
     dataset,
     cfg,
 ):
-    """
-    Build oversampling sampler.
-
-    Returns:
-        sampler or None
-    """
 
     sampling_cfg = cfg.get(
         "sampling",
@@ -47,34 +41,56 @@ def build_train_sampler(
         )
     )
 
-    sampler = (
-        CategoryMultiplierSampler(
-            samples=dataset.samples,
-            category_multiplier=
-                category_multiplier,
-            seed=int(
-                cfg.get(
-                    "seed",
-                    42,
-                )
-            ),
-        )
+    return CategoryMultiplierSampler(
+        samples=
+            dataset.samples,
+
+        category_multiplier=
+            category_multiplier,
+
+        seed=int(
+            cfg.get(
+                "seed",
+                42,
+            )
+        ),
     )
 
-    return sampler
+
+def get_data_root(
+    data_cfg,
+):
+
+    if "prepared_root" in data_cfg:
+
+        return data_cfg[
+            "prepared_root"
+        ]
+
+    if "root" in data_cfg:
+
+        return data_cfg[
+            "root"
+        ]
+
+    raise KeyError(
+        "data.root or "
+        "data.prepared_root "
+        "is required."
+    )
 
 
 def build_dataloaders(
     cfg,
 ):
 
-    data_cfg = (
-        cfg["data"]
-    )
+    data_cfg = cfg[
+        "data"
+    ]
 
-    train_cfg = (
-        cfg["training"]
-    )
+    train_cfg = cfg[
+        "training"
+    ]
 
     augmentation_cfg = (
         cfg.get(
@@ -83,21 +99,25 @@ def build_dataloaders(
         )
     )
 
+    synthetic_cfg = (
+        cfg.get(
+            "synthetic",
+            {},
+        )
+    )
+
     categories = (
         data_cfg.get(
             "categories",
             [
-                "Geometry",
                 "Tissue",
                 "Healthy",
             ],
         )
     )
 
-    root = (
-        data_cfg[
-            "root"
-        ]
+    root = get_data_root(
+        data_cfg
     )
 
     image_size = int(
@@ -107,40 +127,55 @@ def build_dataloaders(
     )
 
     # ========================================================
-    # Train Dataset
+    # TRAIN
+    #
+    # Synthetic allowed
     # ========================================================
 
     train_dataset = (
         IrisSegmentationDataset(
             root=root,
+
             split="train",
-            image_size=image_size,
-            categories=categories,
+
+            image_size=
+                image_size,
+
+            categories=
+                categories,
+
             augmentation_config=
                 augmentation_cfg,
+
+            synthetic_config=
+                synthetic_cfg,
         )
     )
 
     # ========================================================
-    # Validation Dataset
+    # VALIDATION
     #
-    # augmentationなし
-    # oversamplingなし
+    # NO Synthetic
+    # NO Augmentation
     # ========================================================
 
     val_dataset = (
         IrisSegmentationDataset(
             root=root,
+
             split="val",
-            image_size=image_size,
-            categories=categories,
+
+            image_size=
+                image_size,
+
+            categories=
+                categories,
+
             augmentation_config=None,
+
+            synthetic_config=None,
         )
     )
-
-    # ========================================================
-    # Oversampling
-    # ========================================================
 
     train_sampler = (
         build_train_sampler(
@@ -148,15 +183,6 @@ def build_dataloaders(
             cfg,
         )
     )
-
-    # sampler使用時はshuffle=False
-    shuffle = (
-        train_sampler is None
-    )
-
-    # ========================================================
-    # Train Loader
-    # ========================================================
 
     train_loader = DataLoader(
         train_dataset,
@@ -167,9 +193,13 @@ def build_dataloaders(
             ]
         ),
 
-        shuffle=shuffle,
+        shuffle=(
+            train_sampler
+            is None
+        ),
 
-        sampler=train_sampler,
+        sampler=
+            train_sampler,
 
         num_workers=int(
             train_cfg[
@@ -180,10 +210,6 @@ def build_dataloaders(
         pin_memory=
             torch.cuda.is_available(),
     )
-
-    # ========================================================
-    # Validation Loader
-    # ========================================================
 
     val_loader = DataLoader(
         val_dataset,

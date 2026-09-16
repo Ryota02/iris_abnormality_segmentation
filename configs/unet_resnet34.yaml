@@ -10,18 +10,14 @@ data:
 
 model:
   name: unet_resnet
-
   backbone: resnet34
-
   pretrained: true
-
   in_channels: 1
   out_channels: 1
 
 
 training:
   image_size: 512
-
   epochs: 100
   batch_size: 8
 
@@ -29,7 +25,6 @@ training:
   weight_decay: 0.0001
 
   num_workers: 0
-
   threshold: 0.5
 
   loss:
@@ -165,6 +160,27 @@ report:
 
   output_pdf:
     outputs/unet_resnet34/predictions/test_results.pdf
+
+synthetic:
+  tissue_image_dir:
+    /media/share/Member/ueki/datasets/iris_segmentation/Tissue/train/images
+  tissue_mask_dir:
+    /media/share/Member/ueki/datasets/iris_segmentation/Tissue/train/masks
+  healthy_image_dir:
+    /media/share/Member/ueki/datasets/iris_segmentation/Healthy/train/images
+  output_image_dir:
+    /media/share/Member/ueki/datasets/iris_segmentation/Tissue/train_synthetic/images
+  output_mask_dir:
+    /media/share/Member/ueki/datasets/iris_segmentation/Tissue/train_synthetic/masks
+  num_images: 30
+  # 病変配置位置を探す最大試行回数
+  maximum_attempts: 1000
+  # pupil境界から最低5 pixel離す
+  pupil_margin: 5
+  # iris外周から最低5 pixel内側にする
+  iris_margin: 5
+  # copy-paste境界を少し滑らかにする
+  feather_size: 5
 
 
 output:

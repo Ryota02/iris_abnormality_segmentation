@@ -6,31 +6,18 @@ from PIL import Image
 
 
 DEFAULT_CATEGORIES = [
-    "Geometry",
+    # "Geometry",
     "Tissue",
     "Healthy",
 ]
 
-
 def collect_prediction_samples(
     prediction_root,
     categories=None,
+    experiment_name=None,
 ):
     """
     Collect prediction result folders.
-
-    Expected structure:
-
-    prediction_root/
-        Geometry/
-            sample_name/
-                original.png
-                ground_truth.png
-                segmentation.png
-                color_map.png
-                heat_map.png
-        Tissue/
-        Healthy/
     """
 
     prediction_root = Path(
@@ -104,25 +91,22 @@ def collect_prediction_samples(
                     f"{sample_dir}"
                 )
 
-                for path in (
-                    missing_files
-                ):
-
-                    print(
-                        f"    {path.name}"
-                    )
-
                 continue
 
-            samples.append({
-                "category":
-                    category,
+            samples.append(
+                {
+                    "experiment":
+                        experiment_name,
 
-                "name":
-                    sample_dir.name,
+                    "category":
+                        category,
 
-                **paths,
-            })
+                    "name":
+                        sample_dir.name,
+
+                    **paths,
+                }
+            )
 
     return samples
 
@@ -284,13 +268,32 @@ def draw_sample_row(
     # Category / filename
     # ========================================================
 
+    experiment = sample.get(
+        "experiment",
+        None,
+    )
+    
+    if experiment is None:
+    
+        label = (
+            f"{sample['category']}\n"
+            f"{sample['name']}"
+        )
+    
+    else:
+    
+        label = (
+            f"{experiment}\n"
+            f"{sample['category']}\n"
+            f"{sample['name']}"
+        )
+    
     axes[
         row,
         0
     ].set_ylabel(
-        f"{sample['category']}\n"
-        f"{sample['name']}",
-        fontsize=10,
+        label,
+        fontsize=9,
     )
 
     # ========================================================
@@ -311,6 +314,7 @@ def create_prediction_pdf(
     samples,
     output_pdf,
     rows_per_page=4,
+    title=None,
 ):
     """
     Create multi-page PDF
@@ -396,9 +400,14 @@ def create_prediction_pdf(
             # Page title
             # =================================================
 
+            if title is None:
+                title = (
+                    "Iris Abnormality "
+                    "Segmentation Results"
+                )
+            
             fig.suptitle(
-                "Iris Abnormality "
-                "Segmentation Results\n"
+                f"{title}\n"
                 "Original | Ground Truth | "
                 "Prediction | "
                 "Segmentation Error Map | "
@@ -409,7 +418,6 @@ def create_prediction_pdf(
                 "Red=Missed (FN)",
                 fontsize=14,
             )
-
             plt.tight_layout(
                 rect=[
                     0,
@@ -449,6 +457,7 @@ def generate_prediction_report(
     output_pdf,
     categories=None,
     rows_per_page=4,
+    title=None,
 ):
     """
     High-level function called from script.
@@ -482,4 +491,5 @@ def generate_prediction_report(
         output_pdf=output_pdf,
         rows_per_page=
             rows_per_page,
+        title=title,
     )

@@ -237,13 +237,32 @@ def run_prediction(
         data_cfg["root"]
     )
 
-    prediction_root = (
-        Path(
-            output_cfg[
-                "prediction_dir"
-            ]
+    # ========================================================
+    # Prediction output
+    # ========================================================
+    
+    output_root = Path(
+        output_cfg[
+            "dir"
+        ]
+    )
+    
+    prediction_folder = (
+        output_cfg.get(
+            "prediction_dir",
+            "predictions",
         )
+    )
+    
+    prediction_root = (
+        output_root
+        / prediction_folder
         / split
+    )
+    
+    prediction_root.mkdir(
+        parents=True,
+        exist_ok=True,
     )
 
     image_size = int(

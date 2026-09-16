@@ -189,15 +189,10 @@ def save_history(
             )
 
 
-def train_from_config(
-    cfg,
-):
+def train_from_config(cfg):
 
     seed = int(
-        cfg.get(
-            "seed",
-            42,
-        )
+        cfg.get("seed",42)
     )
 
     set_seed(seed)
@@ -393,6 +388,8 @@ def train_from_config(
     }
 
     best_dice = -1.0
+    best_iou = -1.0
+    best_epoch = -1
 
     epochs = int(
         train_cfg[
@@ -562,18 +559,10 @@ def train_from_config(
         # Best model
         # ====================================================
 
-        if (
-            val_metrics[
-                "dice"
-            ]
-            > best_dice
-        ):
-
-            best_dice = (
-                val_metrics[
-                    "dice"
-                ]
-            )
+        if (val_metrics["dice"] > best_dice):
+            best_dice = (val_metrics["dice"])
+            best_iou = val_metrics["iou"]
+            best_epoch = epoch
 
             torch.save(
                 {
@@ -588,6 +577,9 @@ def train_from_config(
 
                     "val_dice":
                         best_dice,
+
+                    "val_iou": 
+                        best_iou,
 
                     "config":
                         cfg,
@@ -620,3 +612,13 @@ def train_from_config(
         f"Best Val Dice: "
         f"{best_dice:.4f}"
     )
+    return {
+        "best_epoch":
+            best_epoch,
+    
+        "best_val_dice":
+            best_dice,
+    
+        "best_val_iou":
+            best_iou,
+    }

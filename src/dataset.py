@@ -1,108 +1,13 @@
+from pathlib import Path
 import random
-from pathlib import Path
-
-import cv2
-import numpy as np
-import torch
-from torch.utils.data import Dataset
-
-
-IMAGE_EXTENSIONS = {
-    ".png"
-}
-
-
-class SegmentationTransform:
-    def __init__(
-        self,
-        image_size,
-        train=False,
-        augmentation_config=None,
-    ):
-        self.image_size = image_size
-        self.train = train
-        self.augmentation_config = augmentation_config or {}
-
-    def __call__(self, image, mask):
-        image = cv2.resize(
-            image,
-            (self.image_size, self.image_size),
-            interpolation=cv2.INTER_LINEAR,
-        )
-
-        mask = cv2.resize(
-            mask,
-            (self.image_size, self.image_size),
-            interpolation=cv2.INTER_NEAREST,
-        )
-
-        if self.train:
-            flip_cfg = self.augmentation_config.get(
-                "horizontal_flip",
-                {},
-            )
-            if flip_cfg.get("enabled", False):
-                probability = flip_cfg.get("probability", 0.5)
-                if random.random() < probability:
-                    image = np.fliplr(image).copy()
-                    mask = np.fliplr(mask).copy()
-
-            rotation_cfg = self.augmentation_config.get(
-                "rotation",
-                {},
-            )
-            if rotation_cfg.get("enabled", False):
-                probability = rotation_cfg.get("probability", 0.5)
-
-                if random.random() < probability:
-                    limit = rotation_cfg.get("limit", 10)
-                    angle = random.uniform(-limit, limit)
-
-                    center = (
-                        self.image_size / 2.0,
-                        self.image_size / 2.0,
-                    )
-
-                    matrix = cv2.getRotationMatrix2D(
-                        center,
-                        angle,
-                        1.0,
-                    )
-
-                    image = cv2.warpAffine(
-                        image,
-                        matrix,
-                        (self.image_size, self.image_size),
-                        flags=cv2.INTER_LINEAR,
-                        borderMode=cv2.BORDER_CONSTANT,
-                        borderValue=0,
-                    )
-
-                    mask = cv2.warpAffine(
-                        mask,
-                        matrix,
-                        (self.image_size, self.image_size),
-                        flags=cv2.INTER_NEAREST,
-                        borderMode=cv2.BORDER_CONSTANT,
-                        borderValue=0,
-                    )
-
-        image = image.astype(np.float32) / 255.0
-        mask = (mask > 0).astype(np.float32)
-
-        image = torch.from_numpy(image).unsqueeze(0)
-        mask = torch.from_numpy(mask).unsqueeze(0)
-
-        return image, mask
-
-
-from pathlib import Path
 
 import cv2
 
 from torch.utils.data import Dataset
 
-from src.augmentation import SegmentationAugmentation
+from src.augmentation import (
+    SegmentationAugmentation,
+)
 
 
 IMAGE_EXTENSIONS = {
@@ -113,6 +18,40 @@ IMAGE_EXTENSIONS = {
     ".tif",
     ".tiff",
 }
+
+
+def find_mask_path(
+    mask_dir,
+    image_path,
+):
+    """
+    Support:
+
+        image.png -> image.png
+
+    and:
+
+        image.png -> image_mask.png
+    """
+
+    mask_dir = Path(
+        mask_dir
+    )
+
+    candidates = [
+        mask_dir
+        / f"{image_path.stem}.png",
+
+        mask_dir
+        / f"{image_path.stem}_mask.png",
+    ]
+
+    for path in candidates:
+
+        if path.exists():
+            return path
+
+    return None
 
 
 class IrisSegmentationDataset(
@@ -126,6 +65,7 @@ class IrisSegmentationDataset(
         image_size,
         categories,
         augmentation_config=None,
+        synthetic_config=None,
     ):
 
         self.root = Path(
@@ -140,90 +80,46 @@ class IrisSegmentationDataset(
 
         self.samples = []
 
-        # ----------------------------------------------------
-        # Collect samples
-        # ----------------------------------------------------
+        # ====================================================
+        # Real dataset
+        # ====================================================
 
-        for category in categories:
+        self._add_real_samples(
+            synthetic_config=
+                synthetic_config,
+        )
 
-            image_dir = (
-                self.root
-                / category
-                / split
-                / "images"
+        self.real_count = len(
+            self.samples
+        )
+
+        # ====================================================
+        # Synthetic Tissue
+        #
+        # ONLY TRAIN
+        # ====================================================
+
+        if (
+            split == "train"
+            and synthetic_config is not None
+            and synthetic_config.get(
+                "enabled",
+                False,
+            )
+        ):
+
+            self._add_synthetic_tissue(
+                synthetic_config
             )
 
-            mask_dir = (
-                self.root
-                / category
-                / split
-                / "masks"
-            )
-
-            if not image_dir.exists():
-
-                raise FileNotFoundError(
-                    f"Image directory "
-                    f"not found: "
-                    f"{image_dir}"
-                )
-
-            if not mask_dir.exists():
-
-                raise FileNotFoundError(
-                    f"Mask directory "
-                    f"not found: "
-                    f"{mask_dir}"
-                )
-
-            for image_path in sorted(
-                image_dir.iterdir()
-            ):
-
-                if (
-                    not image_path.is_file()
-                ):
-                    continue
-
-                if (
-                    image_path.suffix.lower()
-                    not in IMAGE_EXTENSIONS
-                ):
-                    continue
-
-                mask_path = (
-                    mask_dir
-                    / (
-                        image_path.stem
-                        + ".png"
-                    )
-                )
-
-                if not mask_path.exists():
-
-                    raise FileNotFoundError(
-                        f"Mask not found: "
-                        f"{mask_path}"
-                    )
-
-                self.samples.append({
-                    "image_path":
-                        image_path,
-
-                    "mask_path":
-                        mask_path,
-
-                    "category":
-                        category,
-                })
-
-        # ----------------------------------------------------
+        # ====================================================
         # Transform
-        # ----------------------------------------------------
+        # ====================================================
 
         self.transform = (
             SegmentationAugmentation(
-                image_size=image_size,
+                image_size=
+                    image_size,
 
                 augmentation_config=
                     augmentation_config,
@@ -234,29 +130,371 @@ class IrisSegmentationDataset(
             )
         )
 
-        # ----------------------------------------------------
-        # Print
-        # ----------------------------------------------------
+        # ====================================================
+        # Summary
+        # ====================================================
 
-        print(
-            f"\n{split}: "
-            f"{len(self.samples)} images"
+        self._print_summary()
+
+    # ========================================================
+    # Real data
+    # ========================================================
+
+    def _add_real_samples(
+        self,
+        synthetic_config=None,
+    ):
+    
+        # ========================================================
+        # Whether Real Tissue should be included
+        #
+        # IMPORTANT:
+        # This affects TRAIN only.
+        # Val/Test always use real data.
+        # ========================================================
+    
+        include_real_tissue = True
+    
+        if (
+            self.split == "train"
+            and synthetic_config is not None
+        ):
+    
+            include_real_tissue = bool(
+                synthetic_config.get(
+                    "include_real_tissue",
+                    True,
+                )
+            )
+    
+        # ========================================================
+        # Categories
+        # ========================================================
+    
+        for category in (
+            self.categories
+        ):
+    
+            # ----------------------------------------------------
+            # Synthetic-only experiment:
+            # exclude REAL Tissue from TRAIN
+            # ----------------------------------------------------
+    
+            if (
+                self.split == "train"
+                and category == "Tissue"
+                and not include_real_tissue
+            ):
+    
+                print(
+                    "[INFO] "
+                    "Real Tissue excluded "
+                    "from training."
+                )
+    
+                continue
+    
+            image_dir = (
+                self.root
+                / category
+                / self.split
+                / "images"
+            )
+    
+            mask_dir = (
+                self.root
+                / category
+                / self.split
+                / "masks"
+            )
+    
+            if not image_dir.exists():
+    
+                raise FileNotFoundError(
+                    f"Image directory "
+                    f"not found: "
+                    f"{image_dir}"
+                )
+    
+            if not mask_dir.exists():
+    
+                raise FileNotFoundError(
+                    f"Mask directory "
+                    f"not found: "
+                    f"{mask_dir}"
+                )
+    
+            image_paths = sorted([
+                path
+                for path
+                in image_dir.iterdir()
+    
+                if (
+                    path.is_file()
+                    and
+                    path.suffix.lower()
+                    in IMAGE_EXTENSIONS
+                )
+            ])
+    
+            for image_path in (
+                image_paths
+            ):
+    
+                mask_path = (
+                    find_mask_path(
+                        mask_dir,
+                        image_path,
+                    )
+                )
+    
+                if mask_path is None:
+    
+                    raise FileNotFoundError(
+                        f"Mask not found for: "
+                        f"{image_path}"
+                    )
+    
+                self.samples.append(
+                    {
+                        "image_path":
+                            image_path,
+    
+                        "mask_path":
+                            mask_path,
+    
+                        "category":
+                            category,
+    
+                        "is_synthetic":
+                            False,
+                    }
+                )
+
+    # ========================================================
+    # Synthetic Tissue
+    # ========================================================
+
+    def _add_synthetic_tissue(
+        self,
+        synthetic_config,
+    ):
+
+        if (
+            "Tissue"
+            not in self.categories
+        ):
+
+            print(
+                "[WARNING] "
+                "Synthetic Tissue enabled, "
+                "but Tissue is not included "
+                "in data.categories."
+            )
+
+            return
+
+        image_dir = Path(
+            synthetic_config[
+                "image_dir"
+            ]
         )
 
-        for category in categories:
+        mask_dir = Path(
+            synthetic_config[
+                "mask_dir"
+            ]
+        )
 
-            count = sum(
-                sample["category"]
-                == category
+        if not image_dir.exists():
+
+            raise FileNotFoundError(
+                f"Synthetic image directory "
+                f"not found: "
+                f"{image_dir}"
+            )
+
+        if not mask_dir.exists():
+
+            raise FileNotFoundError(
+                f"Synthetic mask directory "
+                f"not found: "
+                f"{mask_dir}"
+            )
+
+        image_paths = sorted([
+            path
+            for path
+            in image_dir.iterdir()
+
+            if (
+                path.is_file()
+                and
+                path.suffix.lower()
+                in IMAGE_EXTENSIONS
+            )
+        ])
+
+        # ----------------------------------------------------
+        # Deterministic shuffle
+        #
+        # 10枚 experiment:
+        #   synthetic 1-10
+        #
+        # 20枚 experiment:
+        #   same 1-10 + additional 10
+        #
+        # とするための固定seed
+        # ----------------------------------------------------
+
+        shuffle_seed = int(
+            synthetic_config.get(
+                "shuffle_seed",
+                42,
+            )
+        )
+
+        rng = random.Random(
+            shuffle_seed
+        )
+
+        rng.shuffle(
+            image_paths
+        )
+
+        use_num = int(
+            synthetic_config.get(
+                "use_num",
+                len(image_paths),
+            )
+        )
+
+        if use_num > len(
+            image_paths
+        ):
+
+            raise ValueError(
+                f"Requested "
+                f"{use_num} synthetic images, "
+                f"but only "
+                f"{len(image_paths)} "
+                f"are available."
+            )
+
+        selected_paths = (
+            image_paths[
+                :use_num
+            ]
+        )
+
+        for image_path in (
+            selected_paths
+        ):
+
+            mask_path = (
+                find_mask_path(
+                    mask_dir,
+                    image_path,
+                )
+            )
+
+            if mask_path is None:
+
+                raise FileNotFoundError(
+                    f"Synthetic mask "
+                    f"not found for: "
+                    f"{image_path}"
+                )
+
+            self.samples.append(
+                {
+                    "image_path":
+                        image_path,
+
+                    "mask_path":
+                        mask_path,
+
+                    "category":
+                        "Tissue",
+
+                    "is_synthetic":
+                        True,
+                }
+            )
+
+    # ========================================================
+    # Summary
+    # ========================================================
+
+    def _print_summary(
+        self,
+    ):
+
+        print(
+            f"\n"
+            f"Dataset: "
+            f"{self.split}"
+        )
+
+        for category in (
+            self.categories
+        ):
+
+            real_count = sum(
+                (
+                    sample[
+                        "category"
+                    ]
+                    == category
+
+                    and
+                    not sample[
+                        "is_synthetic"
+                    ]
+                )
 
                 for sample
                 in self.samples
             )
 
-            print(
-                f"  {category}: "
-                f"{count}"
+            synthetic_count = sum(
+                (
+                    sample[
+                        "category"
+                    ]
+                    == category
+
+                    and
+                    sample[
+                        "is_synthetic"
+                    ]
+                )
+
+                for sample
+                in self.samples
             )
+
+            total = (
+                real_count
+                + synthetic_count
+            )
+
+            print(
+                f"{category:<10} "
+                f"Real={real_count:<3} "
+                f"Synthetic="
+                f"{synthetic_count:<3} "
+                f"Total={total:<3}"
+            )
+
+        print(
+            f"Total: "
+            f"{len(self.samples)}"
+        )
+
+    # ========================================================
+    # Dataset
+    # ========================================================
 
     def __len__(
         self,
@@ -289,20 +527,8 @@ class IrisSegmentationDataset(
             ]
         )
 
-        category = (
-            sample[
-                "category"
-            ]
-        )
-
-        # ----------------------------------------------------
-        # Read image
-        # ----------------------------------------------------
-
         image = cv2.imread(
-            str(
-                image_path
-            ),
+            str(image_path),
             cv2.IMREAD_GRAYSCALE,
         )
 
@@ -313,14 +539,8 @@ class IrisSegmentationDataset(
                 f"{image_path}"
             )
 
-        # ----------------------------------------------------
-        # Read mask
-        # ----------------------------------------------------
-
         mask = cv2.imread(
-            str(
-                mask_path
-            ),
+            str(mask_path),
             cv2.IMREAD_GRAYSCALE,
         )
 
@@ -331,21 +551,33 @@ class IrisSegmentationDataset(
                 f"{mask_path}"
             )
 
-        # ----------------------------------------------------
-        # Transform
-        # ----------------------------------------------------
-
         image, mask = (
             self.transform(
                 image,
                 mask,
-                category,
+                sample[
+                    "category"
+                ],
             )
         )
 
         return {
-            "image": image,
-            "mask": mask,
-            "category": category,
-            "filename": image_path.name,
+            "image":
+                image,
+
+            "mask":
+                mask,
+
+            "category":
+                sample[
+                    "category"
+                ],
+
+            "filename":
+                image_path.name,
+
+            "is_synthetic":
+                sample[
+                    "is_synthetic"
+                ],
         }
