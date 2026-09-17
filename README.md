@@ -429,31 +429,3 @@ Test:
 Keep the same train/validation/test split across all ablation conditions.
 
 For very small Tissue datasets, subject-level cross-validation is preferable to relying on a validation set containing only one Tissue image.
-
----
-
-# 12. Git Workflow
-
-Check the current changes:
-
-```bash
-git status
-```
-
-Stage the changes:
-
-```bash
-git add .
-```
-
-Commit:
-
-```bash
-git commit -m "Update experiment workflows and reporting"
-```
-
-Push the current branch:
-
-```bash
-git push origin HEAD
-```
